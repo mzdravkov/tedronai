@@ -15,7 +15,7 @@ import (
 // Copyright (c) 2016 Mihail Zdravkov (mihail0zdravkov@gmail.com)
 
 type ComponentMaskChunkedVec struct {
-	list      *list.List
+	List      *list.List
 	ChunkSize uint
 	Empty     ComponentMask
 }
@@ -27,7 +27,7 @@ func NewComponentMaskChunkedVec(chunkSize uint) *ComponentMaskChunkedVec {
 	}
 
 	return &ComponentMaskChunkedVec{
-		list:      list.New(),
+		List:      list.New(),
 		ChunkSize: chunkSize,
 	}
 }
@@ -35,7 +35,7 @@ func NewComponentMaskChunkedVec(chunkSize uint) *ComponentMaskChunkedVec {
 // Adds the element to the ChunkedVec and returns the position it was added to
 func (cv *ComponentMaskChunkedVec) Add(element ComponentMask) (uint, uint) {
 	listIndex := 0
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		for index, value := range e.Value.([]ComponentMask) {
 			if value == cv.Empty {
 				e.Value.([]ComponentMask)[index] = element
@@ -48,7 +48,7 @@ func (cv *ComponentMaskChunkedVec) Add(element ComponentMask) (uint, uint) {
 
 	slice := make([]ComponentMask, cv.ChunkSize)
 	slice[0] = element
-	cv.list.PushBack(slice)
+	cv.List.PushBack(slice)
 
 	return uint(listIndex), uint(0)
 }
@@ -56,7 +56,7 @@ func (cv *ComponentMaskChunkedVec) Add(element ComponentMask) (uint, uint) {
 // Overwrites the given position to hold the given value
 func (cv *ComponentMaskChunkedVec) PutAt(element ComponentMask, listIndex, sliceIndex uint) {
 	var i uint = 0
-	e := cv.list.Front()
+	e := cv.List.Front()
 	for ; i < listIndex; e = e.Next() {
 		i++
 	}
@@ -71,18 +71,29 @@ func (cv *ComponentMaskChunkedVec) DeleteAt(listIndex, sliceIndex uint) {
 
 // Returns the value that is on the given position
 func (cv *ComponentMaskChunkedVec) Get(listIndex, sliceIndex uint) ComponentMask {
-	var i uint = 0
-	e := cv.list.Front()
-	for ; i < listIndex; e = e.Next() {
+	e := cv.List.Front()
+	for i := uint(0); i < listIndex; e = e.Next() {
 		i++
 	}
 
 	return e.Value.([]ComponentMask)[sliceIndex]
 }
 
+// Adds chunks (list nodes) to the ComponentMaskChunkedVec
+func (cv *ComponentMaskChunkedVec) Grow(n int) {
+	if n < 0 {
+		panic("Can't grow ComponentMaskChunkedVec with a negative amount")
+	}
+
+	for i := 0; i < n; i++ {
+		slice := make([]ComponentMask, cv.ChunkSize)
+		cv.List.PushBack(slice)
+	}
+}
+
 // Remove list nodes that has arrays that are with the Empty element only
 func (cv *ComponentMaskChunkedVec) Shrink() {
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		allEmpty := true
 		for _, value := range e.Value.([]ComponentMask) {
 			if value != cv.Empty {
@@ -92,7 +103,7 @@ func (cv *ComponentMaskChunkedVec) Shrink() {
 		}
 
 		if allEmpty {
-			cv.list.Remove(e)
+			cv.List.Remove(e)
 		}
 	}
 }
@@ -101,7 +112,7 @@ func (cv *ComponentMaskChunkedVec) Shrink() {
 func (cv *ComponentMaskChunkedVec) Len() int {
 	number := 0
 
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		for _, value := range e.Value.([]ComponentMask) {
 			if value != cv.Empty {
 				number++
@@ -115,7 +126,7 @@ func (cv *ComponentMaskChunkedVec) Len() int {
 // Returns the current capacity of the ComponentMaskChunkedVec
 // i.e. the number of elements it can currently hold without growing
 func (cv *ComponentMaskChunkedVec) Cap() int {
-	return cv.list.Len() * int(cv.ChunkSize)
+	return cv.List.Len() * int(cv.ChunkSize)
 }
 
 // Iter returns a channel of type ComponentMask that you can range over.
@@ -123,7 +134,7 @@ func (cv *ComponentMaskChunkedVec) Iter() <-chan ComponentMask {
 	ch := make(chan ComponentMask)
 
 	go func() {
-		for e := cv.list.Front(); e != nil; e = e.Next() {
+		for e := cv.List.Front(); e != nil; e = e.Next() {
 			for _, value := range e.Value.([]ComponentMask) {
 				ch <- value
 			}
@@ -136,7 +147,7 @@ func (cv *ComponentMaskChunkedVec) Iter() <-chan ComponentMask {
 
 // Checks if the ComponentMaskChunkedVec contains the given element
 func (cv *ComponentMaskChunkedVec) Contains(element ComponentMask) bool {
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		for _, value := range e.Value.([]ComponentMask) {
 			if value == element {
 				return true
@@ -163,12 +174,12 @@ func (cv *ComponentMaskChunkedVec) ContainsAll(searchingFor ...ComponentMask) bo
 // with slices that have the same values
 func (cv *ComponentMaskChunkedVec) Equal(other *ComponentMaskChunkedVec) bool {
 	// no worries, the complexity of this is O(1)
-	if cv.list.Len() != other.list.Len() {
+	if cv.List.Len() != other.List.Len() {
 		return false
 	}
 
-	e2 := other.list.Front()
-	for e1 := cv.list.Front(); e1 != nil; e1 = e1.Next() {
+	e2 := other.List.Front()
+	for e1 := cv.List.Front(); e1 != nil; e1 = e1.Next() {
 		len1 := len(e1.Value.([]ComponentMask))
 		len2 := len(e2.Value.([]ComponentMask))
 		if len1 != len2 {
@@ -193,7 +204,7 @@ func (cv *ComponentMaskChunkedVec) Clone() *ComponentMaskChunkedVec {
 	clonedComponentMaskChunkedVec := NewComponentMaskChunkedVec(cv.ChunkSize)
 
 	var listIndex uint = 0
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		for index, value := range e.Value.([]ComponentMask) {
 			clonedComponentMaskChunkedVec.PutAt(value, listIndex, uint(index))
 		}
@@ -206,15 +217,15 @@ func (cv *ComponentMaskChunkedVec) Clone() *ComponentMaskChunkedVec {
 
 // Clears all the data in the ComponentMaskChunkedVec
 func (cv *ComponentMaskChunkedVec) Clear() {
-	for e := cv.list.Front(); e != nil; e = e.Next() {
-		cv.list.Remove(e)
+	for e := cv.List.Front(); e != nil; e = e.Next() {
+		cv.List.Remove(e)
 	}
 }
 
 func (cv *ComponentMaskChunkedVec) String() string {
 	var buff bytes.Buffer
 	fmt.Fprintf(&buff, "{\n")
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		slice := e.Value.([]ComponentMask)
 		if _, err := fmt.Fprintf(&buff, fmt.Sprintf("\t%s\n", slice)); err != nil {
 			panic("Can't write to buffer")

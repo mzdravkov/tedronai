@@ -15,7 +15,7 @@ import (
 // Copyright (c) 2016 Mihail Zdravkov (mihail0zdravkov@gmail.com)
 
 type SpaceComponentChunkedVec struct {
-	list      *list.List
+	List      *list.List
 	ChunkSize uint
 	Empty     SpaceComponent
 }
@@ -27,7 +27,7 @@ func NewSpaceComponentChunkedVec(chunkSize uint) *SpaceComponentChunkedVec {
 	}
 
 	return &SpaceComponentChunkedVec{
-		list:      list.New(),
+		List:      list.New(),
 		ChunkSize: chunkSize,
 	}
 }
@@ -35,7 +35,7 @@ func NewSpaceComponentChunkedVec(chunkSize uint) *SpaceComponentChunkedVec {
 // Adds the element to the ChunkedVec and returns the position it was added to
 func (cv *SpaceComponentChunkedVec) Add(element SpaceComponent) (uint, uint) {
 	listIndex := 0
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		for index, value := range e.Value.([]SpaceComponent) {
 			if value == cv.Empty {
 				e.Value.([]SpaceComponent)[index] = element
@@ -48,7 +48,7 @@ func (cv *SpaceComponentChunkedVec) Add(element SpaceComponent) (uint, uint) {
 
 	slice := make([]SpaceComponent, cv.ChunkSize)
 	slice[0] = element
-	cv.list.PushBack(slice)
+	cv.List.PushBack(slice)
 
 	return uint(listIndex), uint(0)
 }
@@ -56,7 +56,7 @@ func (cv *SpaceComponentChunkedVec) Add(element SpaceComponent) (uint, uint) {
 // Overwrites the given position to hold the given value
 func (cv *SpaceComponentChunkedVec) PutAt(element SpaceComponent, listIndex, sliceIndex uint) {
 	var i uint = 0
-	e := cv.list.Front()
+	e := cv.List.Front()
 	for ; i < listIndex; e = e.Next() {
 		i++
 	}
@@ -71,18 +71,29 @@ func (cv *SpaceComponentChunkedVec) DeleteAt(listIndex, sliceIndex uint) {
 
 // Returns the value that is on the given position
 func (cv *SpaceComponentChunkedVec) Get(listIndex, sliceIndex uint) SpaceComponent {
-	var i uint = 0
-	e := cv.list.Front()
-	for ; i < listIndex; e = e.Next() {
+	e := cv.List.Front()
+	for i := uint(0); i < listIndex; e = e.Next() {
 		i++
 	}
 
 	return e.Value.([]SpaceComponent)[sliceIndex]
 }
 
+// Adds chunks (list nodes) to the SpaceComponentChunkedVec
+func (cv *SpaceComponentChunkedVec) Grow(n int) {
+	if n < 0 {
+		panic("Can't grow SpaceComponentChunkedVec with a negative amount")
+	}
+
+	for i := 0; i < n; i++ {
+		slice := make([]SpaceComponent, cv.ChunkSize)
+		cv.List.PushBack(slice)
+	}
+}
+
 // Remove list nodes that has arrays that are with the Empty element only
 func (cv *SpaceComponentChunkedVec) Shrink() {
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		allEmpty := true
 		for _, value := range e.Value.([]SpaceComponent) {
 			if value != cv.Empty {
@@ -92,7 +103,7 @@ func (cv *SpaceComponentChunkedVec) Shrink() {
 		}
 
 		if allEmpty {
-			cv.list.Remove(e)
+			cv.List.Remove(e)
 		}
 	}
 }
@@ -101,7 +112,7 @@ func (cv *SpaceComponentChunkedVec) Shrink() {
 func (cv *SpaceComponentChunkedVec) Len() int {
 	number := 0
 
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		for _, value := range e.Value.([]SpaceComponent) {
 			if value != cv.Empty {
 				number++
@@ -115,7 +126,7 @@ func (cv *SpaceComponentChunkedVec) Len() int {
 // Returns the current capacity of the SpaceComponentChunkedVec
 // i.e. the number of elements it can currently hold without growing
 func (cv *SpaceComponentChunkedVec) Cap() int {
-	return cv.list.Len() * int(cv.ChunkSize)
+	return cv.List.Len() * int(cv.ChunkSize)
 }
 
 // Iter returns a channel of type SpaceComponent that you can range over.
@@ -123,7 +134,7 @@ func (cv *SpaceComponentChunkedVec) Iter() <-chan SpaceComponent {
 	ch := make(chan SpaceComponent)
 
 	go func() {
-		for e := cv.list.Front(); e != nil; e = e.Next() {
+		for e := cv.List.Front(); e != nil; e = e.Next() {
 			for _, value := range e.Value.([]SpaceComponent) {
 				ch <- value
 			}
@@ -136,7 +147,7 @@ func (cv *SpaceComponentChunkedVec) Iter() <-chan SpaceComponent {
 
 // Checks if the SpaceComponentChunkedVec contains the given element
 func (cv *SpaceComponentChunkedVec) Contains(element SpaceComponent) bool {
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		for _, value := range e.Value.([]SpaceComponent) {
 			if value == element {
 				return true
@@ -163,12 +174,12 @@ func (cv *SpaceComponentChunkedVec) ContainsAll(searchingFor ...SpaceComponent) 
 // with slices that have the same values
 func (cv *SpaceComponentChunkedVec) Equal(other *SpaceComponentChunkedVec) bool {
 	// no worries, the complexity of this is O(1)
-	if cv.list.Len() != other.list.Len() {
+	if cv.List.Len() != other.List.Len() {
 		return false
 	}
 
-	e2 := other.list.Front()
-	for e1 := cv.list.Front(); e1 != nil; e1 = e1.Next() {
+	e2 := other.List.Front()
+	for e1 := cv.List.Front(); e1 != nil; e1 = e1.Next() {
 		len1 := len(e1.Value.([]SpaceComponent))
 		len2 := len(e2.Value.([]SpaceComponent))
 		if len1 != len2 {
@@ -193,7 +204,7 @@ func (cv *SpaceComponentChunkedVec) Clone() *SpaceComponentChunkedVec {
 	clonedSpaceComponentChunkedVec := NewSpaceComponentChunkedVec(cv.ChunkSize)
 
 	var listIndex uint = 0
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		for index, value := range e.Value.([]SpaceComponent) {
 			clonedSpaceComponentChunkedVec.PutAt(value, listIndex, uint(index))
 		}
@@ -206,15 +217,15 @@ func (cv *SpaceComponentChunkedVec) Clone() *SpaceComponentChunkedVec {
 
 // Clears all the data in the SpaceComponentChunkedVec
 func (cv *SpaceComponentChunkedVec) Clear() {
-	for e := cv.list.Front(); e != nil; e = e.Next() {
-		cv.list.Remove(e)
+	for e := cv.List.Front(); e != nil; e = e.Next() {
+		cv.List.Remove(e)
 	}
 }
 
 func (cv *SpaceComponentChunkedVec) String() string {
 	var buff bytes.Buffer
 	fmt.Fprintf(&buff, "{\n")
-	for e := cv.list.Front(); e != nil; e = e.Next() {
+	for e := cv.List.Front(); e != nil; e = e.Next() {
 		slice := e.Value.([]SpaceComponent)
 		if _, err := fmt.Fprintf(&buff, fmt.Sprintf("\t%s\n", slice)); err != nil {
 			panic("Can't write to buffer")

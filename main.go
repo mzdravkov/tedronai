@@ -3,12 +3,10 @@ package main
 import (
 	"image/color"
 	"log"
-	"sync"
 
 	"engo.io/ecs"
 	"engo.io/engo"
 	"engo.io/engo/common"
-	. "github.com/mzdravkov/tedronai/components"
 )
 
 type myScene struct{}
@@ -32,22 +30,6 @@ func (*myScene) Setup(*ecs.World) {
 		log.Println(err)
 	}
 
-	AddEntity(map[ComponentMask]interface{}{
-		Spaceable: SpaceComponent{
-			sync.Mutex{},
-			common.SpaceComponent{
-				Position: engo.Point{0, 0},
-				Width:    texture.Width(),
-				Height:   texture.Height(),
-			},
-		},
-		Renderable: RenderComponent{
-			Drawable: texture,
-			Scale:    engo.Point{1, 1},
-		},
-	})
-
-	RunSystems(Systems)
 }
 
 func main() {
